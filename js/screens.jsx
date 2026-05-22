@@ -1,21 +1,22 @@
 // AudioLog — Screens
 
 // ─── iTunes API ───────────────────────────────────────────
-const EPISODE_CACHE_KEY = 'audiolog_episodes_v1';
+const EPISODE_CACHE_KEY = 'audiolog_episodes_v2';
 const EPISODE_CACHE_TTL = 24 * 60 * 60 * 1000; // 24h
 
 function parseEpisode(item) {
-  const name = item.trackName || item.collectionName || '';
-  // Titel-Format: "Die drei ???, Folge 215: Geisterbucht"
-  const match = name.match(/Folge\s+(\d+)\s*[:\s–-]+\s*(.+)/i);
+  // Alben-Titel z.B. "Die drei ???, Folge 215 - Geisterbucht"
+  //                   "Die drei ???, Folge 7 - Die Affeninsel"
+  const name = item.collectionName || item.trackName || '';
+  const match = name.match(/Folge\s+(\d+)\s*[-–:]\s*(.+)/i);
   if (!match) return null;
   return {
     num:         parseInt(match[1], 10),
     title:       match[2].trim(),
-    duration:    item.trackTimeMillis ? Math.round(item.trackTimeMillis / 60000) : null,
-    appleUrl:    item.trackViewUrl || item.collectionViewUrl || null,
-    releaseDate: item.releaseDate   || null,
-    artwork:     item.artworkUrl100 ? item.artworkUrl100.replace('100x100bb', '400x400bb') : null,
+    duration:    item.collectionTimeMillis ? Math.round(item.collectionTimeMillis / 60000) : null,
+    appleUrl:    item.collectionViewUrl || null,  // Album-Link öffnet Apple Music (nicht Books)
+    releaseDate: item.releaseDate || null,
+    artwork:     item.artworkUrl100 ? item.artworkUrl100.replace('100x100bb', '600x600bb') : null,
   };
 }
 
@@ -35,10 +36,13 @@ async function fetchEpisodes(force = false) {
     if (cached) return cached;
   }
 
+  // media=music&entity=album: Die drei ??? werden als Musik-Alben verkauft,
+  // nicht als Hörbücher – audiobook würde Apple Books treffen.
   const params = new URLSearchParams({
-    term:    'Die drei ???',
+    term:    'Die drei',
     country: 'de',
-    media:   'audiobook',
+    media:   'music',
+    entity:  'album',
     limit:   '200',
   });
   const res = await fetch(`https://itunes.apple.com/search?${params}`);
@@ -46,6 +50,7 @@ async function fetchEpisodes(force = false) {
   const data = await res.json();
 
   const episodes = data.results
+    .filter(r => (r.artistName || '').toLowerCase().includes('die drei'))
     .map(parseEpisode)
     .filter(ep => ep !== null && ep.num > 0)
     .sort((a, b) => b.num - a.num);
