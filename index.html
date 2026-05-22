@@ -76,6 +76,34 @@
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 999px; }
     ::-webkit-scrollbar-thumb:hover { background: var(--fg-4); }
+
+    /* ── Mobile layout ── */
+    @media (max-width: 767px) {
+      .app { border: none; }
+      .sidebar-desktop { display: none !important; }
+      .bottom-nav { display: flex !important; }
+
+      .topbar {
+        padding: 12px 16px;
+        gap: 10px;
+      }
+      .topbar-logo-mobile { display: flex !important; }
+      .topbar-actions { display: none; }
+      .search { flex: 1; min-width: 0; }
+      .search input { font-size: 16px; } /* prevents iOS auto-zoom on focus */
+
+      .main {
+        padding: 24px 16px;
+        padding-bottom: calc(72px + env(safe-area-inset-bottom));
+      }
+    }
+
+    .topbar-logo-mobile {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
   </style>
 
   <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
@@ -109,13 +137,16 @@
           <Sidebar active={nav} onChange={(id) => { setSeries(null); setNav(id); }}/>
           <div className="app-column">
             <div className="topbar">
+              <div className="topbar-logo-mobile">
+                <img src="assets/app-icon.svg" width="26" height="26" style={{borderRadius: 6}} alt=""/>
+                <span style={{
+                  fontFamily: 'var(--font-serif)', fontSize: 19, fontWeight: 600,
+                  color: 'var(--fg-1)', letterSpacing: '-0.02em',
+                }}>Audio<span style={{color: 'var(--accent)'}}>Log</span></span>
+              </div>
               <div className="search">
                 <Icon name="search" size={16}/>
-                <input placeholder="Search series, episodes, narrators…"/>
-                <span style={{
-                  fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--fg-4)',
-                  padding: '2px 6px', border: '1px solid var(--line-1)', borderRadius: 4,
-                }}>⌘K</span>
+                <input placeholder="Suchen…"/>
               </div>
               <div className="topbar-actions">
                 <Button variant="secondary" size="sm" icon="plus">Add series</Button>
@@ -123,6 +154,7 @@
             </div>
             <main className="main">{content}</main>
           </div>
+          <BottomTabBar active={nav} onChange={(id) => { setSeries(null); setNav(id); }}/>
         </div>
       );
     }

@@ -83,7 +83,7 @@ const Sidebar = ({ active, onChange }) => {
     { id: 'rewind', label: 'Worth a re-listen', count: 8 },
   ];
   return (
-    <aside style={{
+    <aside className="sidebar-desktop" style={{
       width: 248, flexShrink: 0,
       borderRight: '1px solid var(--line-1)',
       background: 'var(--bg-0)',
@@ -244,4 +244,41 @@ const SectionHeader = ({ eyebrow, title, action }) => (
   </div>
 );
 
-Object.assign(window, { Icon, Stars, Button, Sidebar, Cover, SeriesCard, EpisodeRow, SectionHeader });
+// ─── Bottom tab bar (mobile) ──────────────────────────────
+const BottomTabBar = ({ active, onChange }) => {
+  const items = [
+    { id: 'home',     label: 'Home',    icon: 'home' },
+    { id: 'library',  label: 'Library', icon: 'library' },
+    { id: 'discover', label: 'Discover',icon: 'compass' },
+    { id: 'journal',  label: 'Journal', icon: 'journal' },
+  ];
+  return (
+    <nav className="bottom-nav" style={{
+      position: 'fixed', bottom: 0, left: 0, right: 0,
+      background: 'var(--bg-0)',
+      borderTop: '1px solid var(--line-1)',
+      display: 'none',
+      paddingBottom: 'env(safe-area-inset-bottom)',
+      zIndex: 100,
+    }}>
+      {items.map(item => {
+        const isActive = active === item.id;
+        return (
+          <button key={item.id} onClick={() => onChange(item.id)} style={{
+            flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
+            gap: 4, padding: '10px 0 8px',
+            background: 'none', border: 'none', cursor: 'pointer',
+            color: isActive ? 'var(--accent)' : 'var(--fg-3)',
+          }}>
+            <Icon name={item.icon} size={22} color={isActive ? 'var(--accent)' : 'var(--fg-3)'}/>
+            <span style={{
+              fontSize: 10, fontFamily: 'var(--font-sans)', fontWeight: isActive ? 600 : 400,
+            }}>{item.label}</span>
+          </button>
+        );
+      })}
+    </nav>
+  );
+};
+
+Object.assign(window, { Icon, Stars, Button, Sidebar, Cover, SeriesCard, EpisodeRow, SectionHeader, BottomTabBar });
