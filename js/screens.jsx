@@ -1,357 +1,389 @@
-// AudioLog — Web Screens
+// AudioLog — Screens (Die drei ???)
 
-const SAMPLE_SERIES = [
-  { id: 'die-drei', title: 'Die drei ???', cover: 'assets/covers/die-drei.svg', listened: 38, total: 215, rating: 4.2 },
-  { id: 'bibi-blocksberg', title: 'Bibi Blocksberg', cover: 'assets/covers/bibi-blocksberg.svg', listened: 12, total: 142, rating: 3.8 },
-  { id: 'benjamin-bluemchen', title: 'Benjamin Blümchen', cover: 'assets/covers/benjamin-bluemchen.svg', listened: 4, total: 168 },
-  { id: 'fuenf-freunde', title: 'Fünf Freunde', cover: 'assets/covers/fuenf-freunde.svg', listened: 21, total: 138, rating: 4.0 },
-  { id: 'tkkg', title: 'TKKG', cover: 'assets/covers/tkkg.svg', listened: 8, total: 232, rating: 3.6 },
-  { id: 'sandman', title: 'The Sandman', cover: 'assets/covers/sandman.svg', listened: 3, total: 11, rating: 4.6 },
-  { id: 'harry-potter', title: 'Harry Potter', cover: 'assets/covers/harry-potter.svg', listened: 5, total: 7, rating: 4.8 },
-  { id: 'jerry-cotton', title: 'Jerry Cotton', cover: 'assets/covers/jerry-cotton.svg', listened: 2, total: 156 },
-];
+// ─── Serie & Episodendaten ────────────────────────────────
+const SERIES = {
+  title: 'Die drei ???',
+  cover: 'assets/covers/die-drei.svg',
+  totalPublished: 215,
+};
 
-const DIE_DREI_EPISODES = [
-  { num: 215, title: 'Geisterbucht', duration: '62 min', status: 'recent', lastHeard: '2 weeks ago', rating: 4 },
-  { num: 214, title: 'Schwarze Sonne', duration: '58 min', status: 'listened', lastHeard: '1 month ago', rating: 0 },
-  { num: 213, title: 'Kontrollverlust', duration: '71 min', status: 'stale', lastHeard: '4 months ago', rating: 0 },
-  { num: 212, title: 'Die Spur des Spielers', duration: '64 min', status: 'stale', lastHeard: '6 months ago', rating: 3 },
-  { num: 211, title: 'Bermuda-Verschwörung', duration: '69 min', status: 'unheard', rating: 0 },
-  { num: 210, title: 'Der Geheimcode', duration: '63 min', status: 'unheard', rating: 0 },
-  { num: 209, title: 'Im Tal der Saurier', duration: '68 min', status: 'unheard', rating: 0 },
-  { num: 208, title: 'Botschaft aus der Unterwelt', duration: '65 min', status: 'unheard', rating: 0 },
-];
+// Episoden neueste zuerst – Titel/Dauer können ergänzt werden
+const EPISODES = [
+  { num: 215, title: 'Geisterbucht',               duration: 62 },
+  { num: 214, title: 'Schwarze Sonne',              duration: 58 },
+  { num: 213, title: 'Kontrollverlust',             duration: 71 },
+  { num: 212, title: 'Die Spur des Spielers',       duration: 64 },
+  { num: 211, title: 'Bermuda-Verschwörung',        duration: 69 },
+  { num: 210, title: 'Der Geheimcode',              duration: 63 },
+  { num: 209, title: 'Im Tal der Saurier',          duration: 68 },
+  { num: 208, title: 'Botschaft aus der Unterwelt', duration: 65 },
+  { num: 207, title: 'Das Monsterschiff',           duration: 67 },
+  { num: 206, title: 'Der Feuerturm',               duration: 60 },
+  { num: 205, title: 'Angriff der Zombies',         duration: 66 },
+  { num: 204, title: 'Das dunkle Labyrinth',        duration: 70 },
+].sort((a, b) => b.num - a.num);
 
-const PageHeader = ({ eyebrow, title, lede }) => (
-  <header style={{ marginBottom: 36 }}>
-    {eyebrow && <div style={{
-      fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase',
-      fontWeight: 600, color: 'var(--fg-3)', marginBottom: 10,
-    }}>{eyebrow}</div>}
-    <h1 style={{
-      fontFamily: 'var(--font-serif)', fontSize: 44, fontWeight: 600,
-      color: 'var(--fg-1)', margin: '0 0 14px', letterSpacing: '-0.022em',
-      lineHeight: 1.15, fontVariationSettings: '"opsz" 144',
-    }}>{title}</h1>
-    {lede && <p style={{
-      fontFamily: 'var(--font-sans)', fontSize: 16, color: 'var(--fg-2)',
-      margin: 0, lineHeight: 1.55, maxWidth: '60ch',
-    }}>{lede}</p>}
-  </header>
-);
+// Apple Music Suchlink pro Folge – kann durch direkten Album-Link ersetzt werden
+function appleMusicUrl(ep) {
+  const q = encodeURIComponent(`Die drei ??? Folge ${ep.num} ${ep.title}`);
+  return `https://music.apple.com/de/search?term=${q}`;
+}
+
+// ─── Tracking via localStorage ────────────────────────────
+// Format: { listened: { "215": "2024-03-15" }, ratings: { "215": 4 } }
+
+function useTracking() {
+  const [t, setT] = React.useState(() => {
+    try { return JSON.parse(localStorage.getItem('audiolog') || '{}'); }
+    catch { return {}; }
+  });
+
+  const persist = (next) => {
+    localStorage.setItem('audiolog', JSON.stringify(next));
+    setT(next);
+  };
+
+  const toggleListened = (num) => {
+    const listened = { ...(t.listened || {}) };
+    if (listened[num]) {
+      delete listened[num];
+    } else {
+      listened[num] = new Date().toISOString().slice(0, 10);
+    }
+    persist({ ...t, listened });
+  };
+
+  const setRating = (num, rating) => {
+    const ratings = { ...(t.ratings || {}), [num]: rating };
+    persist({ ...t, ratings });
+  };
+
+  const isListened  = (num) => !!(t.listened || {})[num];
+  const getRating   = (num) => (t.ratings   || {})[num] || 0;
+  const listenedDate = (num) => (t.listened  || {})[num] || null;
+
+  const nextUnheard = EPISODES.find(ep => !isListened(ep.num));
+
+  const recentlyListened = EPISODES
+    .filter(ep => isListened(ep.num))
+    .sort((a, b) => {
+      const da = listenedDate(a.num), db = listenedDate(b.num);
+      return db > da ? 1 : -1;
+    });
+
+  const listenedCount = Object.keys(t.listened || {}).length;
+
+  return { t, toggleListened, setRating, isListened, getRating, listenedDate, nextUnheard, recentlyListened, listenedCount };
+}
+
+// ─── Hilfsfunktionen ─────────────────────────────────────
+function formatDate(iso) {
+  if (!iso) return null;
+  const d = new Date(iso);
+  const diffDays = Math.floor((new Date() - d) / 86400000);
+  if (diffDays === 0) return 'heute';
+  if (diffDays === 1) return 'gestern';
+  if (diffDays < 7)  return `vor ${diffDays} Tagen`;
+  if (diffDays < 30) return `vor ${Math.floor(diffDays / 7)} Wochen`;
+  if (diffDays < 365) return `vor ${Math.floor(diffDays / 30)} Monaten`;
+  return `vor ${Math.floor(diffDays / 365)} Jahren`;
+}
 
 // ─── Home ─────────────────────────────────────────────────
-function HomeScreen({ onSeriesClick }) {
+function HomeScreen() {
+  const tr = useTracking();
+  const rated = EPISODES.filter(ep => tr.getRating(ep.num) > 0);
+  const avgRating = rated.length
+    ? (rated.reduce((s, ep) => s + tr.getRating(ep.num), 0) / rated.length).toFixed(1)
+    : null;
+
   return (
-    <div>
-      <PageHeader
-        eyebrow="Welcome back, Anna"
-        title="Pick up where you left off."
-        lede="It's been two weeks since you finished Folge 215. Three of your series have unheard episodes waiting."
-      />
+    <div style={{ maxWidth: 480, margin: '0 auto' }}>
 
-      {/* Continue listening */}
-      <SectionHeader eyebrow="Continue" title="Currently listening" action={{label: 'See all'}}/>
-      <div style={{
-        display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16,
-        marginBottom: 48,
-      }}>
-        {SAMPLE_SERIES.slice(0, 3).map(s => (
-          <div key={s.id} onClick={() => onSeriesClick(s)} style={{
-            background: 'var(--bg-1)', border: '1px solid var(--line-1)', borderRadius: 14,
-            padding: 18, display: 'flex', gap: 14, cursor: 'pointer',
-            transition: 'box-shadow 140ms var(--ease-out)',
-          }}
-          onMouseEnter={e => e.currentTarget.style.boxShadow = 'var(--shadow-md)'}
-          onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}
-          >
-            <Cover src={s.cover} width={80} radius={8}/>
-            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-              <div>
-                <div style={{fontSize: 11, color: 'var(--fg-3)', marginBottom: 4, fontFamily: 'var(--font-mono)'}}>Folge {DIE_DREI_EPISODES[0].num}</div>
-                <h3 style={{
-                  fontFamily: 'var(--font-serif)', fontSize: 17, fontWeight: 600,
-                  color: 'var(--fg-1)', margin: '0 0 4px', lineHeight: 1.2,
-                }}>{s.title}</h3>
-                <div style={{fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--fg-3)'}}>{s.listened}/{s.total} listened</div>
-              </div>
-              <div style={{
-                height: 4, background: 'var(--bg-3)', borderRadius: 999, overflow: 'hidden', marginTop: 12,
-              }}>
-                <div style={{
-                  height: '100%', width: `${(s.listened/s.total)*100}%`,
-                  background: 'var(--accent)', borderRadius: 999,
-                }}/>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Stale */}
-      <SectionHeader eyebrow="It's been a while" title="Worth a re-listen"/>
-      <div style={{
-        background: 'var(--bg-1)', border: '1px solid var(--line-1)', borderRadius: 14,
-        marginBottom: 48, overflow: 'hidden',
-      }}>
-        {[
-          { num: 213, title: 'Kontrollverlust', series: 'Die drei ???', when: '4 months ago' },
-          { num: 89,  title: 'Verhexte Klassenfahrt', series: 'Bibi Blocksberg', when: '6 months ago' },
-          { num: 124, title: 'Auf dem Leuchtturm', series: 'Fünf Freunde', when: '8 months ago' },
-        ].map((e, i) => (
-          <div key={i} style={{
-            display: 'grid', gridTemplateColumns: '60px 1fr 1fr auto', gap: 18,
-            padding: '14px 20px', alignItems: 'center',
-            borderTop: i > 0 ? '1px solid var(--line-1)' : 'none',
-          }}>
-            <span style={{fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--fg-3)'}}>{e.num}</span>
-            <div style={{
-              fontFamily: 'var(--font-serif)', fontSize: 16, fontWeight: 600, color: 'var(--fg-1)',
-            }}>{e.title}</div>
-            <div style={{fontSize: 13, color: 'var(--fg-2)'}}>{e.series}</div>
-            <div style={{fontSize: 13, color: 'var(--fg-3)', fontStyle: 'italic'}}>It's been {e.when}.</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Library snapshot */}
-      <SectionHeader eyebrow="Your library" title="Series you're tracking" action={{label: 'See all'}}/>
-      <div style={{
-        display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 18,
-      }}>
-        {SAMPLE_SERIES.slice(0, 6).map(s => (
-          <SeriesCard key={s.id} series={s} onClick={() => onSeriesClick(s)}/>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ─── Library ──────────────────────────────────────────────
-function LibraryScreen({ onSeriesClick }) {
-  const [filter, setFilter] = React.useState('All');
-  const filters = ['All', 'Currently listening', 'Stale', 'Completed', 'Unheard'];
-  return (
-    <div>
-      <PageHeader
-        eyebrow="Library"
-        title="86 episodes across 6 series"
-        lede="Your full listening history. Filter by status, sort by recency, or jump to any series."
-      />
-      <div style={{ display: 'flex', gap: 8, marginBottom: 28, flexWrap: 'wrap' }}>
-        {filters.map(f => (
-          <button key={f} onClick={() => setFilter(f)} style={{
-            padding: '7px 14px', borderRadius: 999, fontSize: 13,
-            background: filter === f ? 'var(--fg-1)' : 'var(--bg-2)',
-            border: filter === f ? '1px solid var(--fg-1)' : '1px solid var(--line-1)',
-            color: filter === f ? 'var(--bg-0)' : 'var(--fg-2)',
-            fontFamily: 'var(--font-sans)', cursor: 'pointer',
-            transition: 'all 140ms var(--ease-out)',
-          }}>{f}</button>
-        ))}
-      </div>
-
-      <div style={{
-        display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 24,
-      }}>
-        {SAMPLE_SERIES.map(s => <SeriesCard key={s.id} series={s} onClick={() => onSeriesClick(s)}/>)}
-      </div>
-    </div>
-  );
-}
-
-// ─── Series detail ────────────────────────────────────────
-function SeriesScreen({ series, onBack }) {
-  return (
-    <div>
-      <button onClick={onBack} style={{
-        background: 'none', border: 'none', color: 'var(--fg-3)',
-        fontSize: 13, padding: 0, cursor: 'pointer', marginBottom: 24,
-        display: 'flex', alignItems: 'center', gap: 6,
-        fontFamily: 'var(--font-sans)',
-      }}>← Back to library</button>
-
-      <div style={{ display: 'flex', gap: 32, marginBottom: 40, alignItems: 'flex-start' }}>
-        <Cover src={series.cover} width={220} radius={12}/>
-        <div style={{ flex: 1, paddingTop: 12 }}>
-          <div style={{
-            fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase',
-            fontWeight: 600, color: 'var(--accent)', marginBottom: 10,
-          }}>Hörspielreihe · {series.total} Folgen</div>
-          <h1 style={{
-            fontFamily: 'var(--font-serif)', fontSize: 52, fontWeight: 600,
-            color: 'var(--fg-1)', margin: '0 0 14px', letterSpacing: '-0.022em',
-            lineHeight: 1.12, fontVariationSettings: '"opsz" 144',
-          }}>{series.title}</h1>
-          <p style={{
-            fontFamily: 'var(--font-sans)', fontSize: 15, color: 'var(--fg-2)',
-            margin: '0 0 24px', lineHeight: 1.55, maxWidth: '54ch',
-          }}>The classic German detective series. Three friends, countless mysteries, four decades of Folgen. You've heard {series.listened}.</p>
-          <div style={{ display: 'flex', gap: 10, marginBottom: 24 }}>
-            <Button variant="primary" icon="headphones">Continue listening</Button>
-            <Button variant="secondary" icon="bookmark">In library</Button>
-            <Button variant="ghost">Share</Button>
-          </div>
-          <div style={{ display: 'flex', gap: 32 }}>
+      {/* Series header */}
+      <div style={{ display: 'flex', gap: 18, alignItems: 'flex-start', marginBottom: 28 }}>
+        <div style={{
+          width: 88, aspectRatio: '5/7', borderRadius: 10,
+          overflow: 'hidden', boxShadow: 'var(--shadow-cover)', flexShrink: 0,
+        }}>
+          <img src={SERIES.cover} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt=""/>
+        </div>
+        <div style={{ flex: 1, paddingTop: 4 }}>
+          <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 600, color: 'var(--fg-3)', marginBottom: 6 }}>Hörspielreihe</div>
+          <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 26, fontWeight: 600, color: 'var(--fg-1)', margin: '0 0 14px', lineHeight: 1.15, letterSpacing: '-0.014em' }}>
+            {SERIES.title}
+          </h1>
+          <div style={{ display: 'flex', gap: 20 }}>
             {[
-              { label: 'Listened', value: series.listened, color: 'var(--status-listened)' },
-              { label: 'Stale', value: 8, color: 'var(--fg-3)' },
-              { label: 'Unheard', value: series.total - series.listened - 8, color: 'var(--fg-4)' },
-              { label: 'Avg ★', value: series.rating || '—', color: 'var(--rating)' },
-            ].map(stat => (
-              <div key={stat.label}>
-                <div style={{
-                  fontFamily: 'var(--font-serif)', fontSize: 28, fontWeight: 600,
-                  color: stat.color, lineHeight: 1, fontVariationSettings: '"opsz" 36',
-                }}>{stat.value}</div>
-                <div style={{
-                  fontSize: 11, color: 'var(--fg-3)', marginTop: 6, letterSpacing: '0.04em',
-                }}>{stat.label}</div>
+              { value: tr.listenedCount,              label: 'gehört' },
+              { value: SERIES.totalPublished,          label: 'gesamt' },
+              { value: avgRating ? `★ ${avgRating}` : '—', label: 'Ø Wertung' },
+            ].map(s => (
+              <div key={s.label}>
+                <div style={{ fontFamily: 'var(--font-serif)', fontSize: 22, fontWeight: 600, color: 'var(--fg-1)', lineHeight: 1 }}>{s.value}</div>
+                <div style={{ fontSize: 10, color: 'var(--fg-3)', marginTop: 3 }}>{s.label}</div>
               </div>
             ))}
           </div>
         </div>
       </div>
 
-      <SectionHeader eyebrow="Episodes" title="All Folgen" action={{label: 'Sort by recent'}}/>
-      <div style={{
-        background: 'var(--bg-1)', border: '1px solid var(--line-1)', borderRadius: 14,
-        overflow: 'hidden',
-      }}>
-        <div style={{
-          display: 'grid', gridTemplateColumns: '50px 1fr 100px 140px 110px', gap: 18,
-          padding: '12px 18px', alignItems: 'center',
-          fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase',
-          fontWeight: 600, color: 'var(--fg-3)', borderBottom: '1px solid var(--line-1)',
-        }}>
-          <span>#</span><span>Folge</span><span>Rating</span><span>Status</span><span style={{textAlign: 'right'}}>Length</span>
+      {/* Progress bar */}
+      <div style={{ marginBottom: 28 }}>
+        <div style={{ height: 5, background: 'var(--bg-3)', borderRadius: 999, overflow: 'hidden' }}>
+          <div style={{
+            height: '100%', borderRadius: 999, background: 'var(--accent)',
+            width: `${Math.min(100, (tr.listenedCount / SERIES.totalPublished) * 100)}%`,
+            transition: 'width 400ms var(--ease-out)',
+          }}/>
         </div>
-        {DIE_DREI_EPISODES.map(ep => <EpisodeRow key={ep.num} episode={ep}/>)}
+        <div style={{ marginTop: 6, fontSize: 11, color: 'var(--fg-3)', fontFamily: 'var(--font-mono)' }}>
+          {tr.listenedCount} von {SERIES.totalPublished} Folgen
+        </div>
+      </div>
+
+      {/* Continue listening CTA */}
+      {tr.nextUnheard && (
+        <a
+          href={appleMusicUrl(tr.nextUnheard)}
+          target="_blank" rel="noopener noreferrer"
+          style={{
+            display: 'flex', alignItems: 'center', gap: 14,
+            background: 'var(--accent)', borderRadius: 12,
+            padding: '14px 18px', marginBottom: 32,
+            textDecoration: 'none', color: 'var(--accent-fg)',
+            boxShadow: 'var(--shadow-md)',
+          }}
+        >
+          <Icon name="headphones" size={22} color="var(--accent-fg)"/>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 11, opacity: 0.8, marginBottom: 2 }}>Weiter hören · Folge {tr.nextUnheard.num}</div>
+            <div style={{ fontFamily: 'var(--font-serif)', fontSize: 17, fontWeight: 600, lineHeight: 1.2 }}>
+              {tr.nextUnheard.title}
+            </div>
+          </div>
+          <Icon name="arrowRight" size={18} color="var(--accent-fg)"/>
+        </a>
+      )}
+
+      {/* Recently listened */}
+      {tr.recentlyListened.length > 0 && (
+        <div style={{ marginBottom: 28 }}>
+          <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 600, color: 'var(--fg-3)', marginBottom: 12 }}>Zuletzt gehört</div>
+          <div style={{ background: 'var(--bg-1)', border: '1px solid var(--line-1)', borderRadius: 12, overflow: 'hidden' }}>
+            {tr.recentlyListened.slice(0, 3).map((ep, i) => (
+              <div key={ep.num} style={{
+                display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px',
+                borderTop: i > 0 ? '1px solid var(--line-1)' : 'none',
+              }}>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--fg-3)', width: 28, textAlign: 'right', flexShrink: 0 }}>{ep.num}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontFamily: 'var(--font-serif)', fontSize: 15, fontWeight: 600, color: 'var(--fg-1)', lineHeight: 1.25 }}>{ep.title}</div>
+                  <div style={{ fontSize: 11, color: 'var(--fg-3)', marginTop: 2 }}>{formatDate(tr.listenedDate(ep.num))}</div>
+                </div>
+                {tr.getRating(ep.num) > 0 && <Stars value={tr.getRating(ep.num)} size={11}/>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Up next */}
+      {EPISODES.filter(ep => !tr.isListened(ep.num)).length > 1 && (
+        <div>
+          <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 600, color: 'var(--fg-3)', marginBottom: 12 }}>Als nächstes</div>
+          <div style={{ background: 'var(--bg-1)', border: '1px solid var(--line-1)', borderRadius: 12, overflow: 'hidden' }}>
+            {EPISODES.filter(ep => !tr.isListened(ep.num)).slice(0, 3).map((ep, i) => (
+              <a key={ep.num} href={appleMusicUrl(ep)} target="_blank" rel="noopener noreferrer" style={{
+                display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px',
+                borderTop: i > 0 ? '1px solid var(--line-1)' : 'none',
+                textDecoration: 'none', color: 'inherit',
+              }}>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--fg-3)', width: 28, textAlign: 'right', flexShrink: 0 }}>{ep.num}</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontFamily: 'var(--font-serif)', fontSize: 15, fontWeight: 600, color: 'var(--fg-1)', lineHeight: 1.25 }}>{ep.title}</div>
+                  <div style={{ fontSize: 11, color: 'var(--fg-3)', marginTop: 2 }}>{ep.duration} min</div>
+                </div>
+                <Icon name="arrowRight" size={14} color="var(--fg-3)"/>
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Library (Episodenliste mit Tracking) ─────────────────
+function LibraryScreen() {
+  const tr = useTracking();
+  const [filter, setFilter] = React.useState('alle');
+  const filters = [
+    { id: 'alle',      label: 'Alle' },
+    { id: 'gehoert',   label: 'Gehört' },
+    { id: 'ungehoert', label: 'Ungehört' },
+  ];
+
+  const visible = EPISODES.filter(ep => {
+    if (filter === 'gehoert')   return tr.isListened(ep.num);
+    if (filter === 'ungehoert') return !tr.isListened(ep.num);
+    return true;
+  });
+
+  return (
+    <div style={{ maxWidth: 480, margin: '0 auto' }}>
+      <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 28, fontWeight: 600, color: 'var(--fg-1)', margin: '0 0 20px', letterSpacing: '-0.014em' }}>
+        Alle Folgen
+      </h1>
+
+      <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+        {filters.map(f => (
+          <button key={f.id} onClick={() => setFilter(f.id)} style={{
+            padding: '6px 14px', borderRadius: 999, fontSize: 13,
+            background: filter === f.id ? 'var(--fg-1)' : 'var(--bg-2)',
+            border: filter === f.id ? '1px solid var(--fg-1)' : '1px solid var(--line-1)',
+            color: filter === f.id ? 'var(--bg-0)' : 'var(--fg-2)',
+            fontFamily: 'var(--font-sans)', cursor: 'pointer',
+            transition: 'all 140ms var(--ease-out)',
+          }}>{f.label}</button>
+        ))}
+      </div>
+
+      <div style={{ background: 'var(--bg-1)', border: '1px solid var(--line-1)', borderRadius: 12, overflow: 'hidden' }}>
+        {visible.map((ep, i) => (
+          <EpisodeItem key={ep.num} ep={ep} tr={tr} borderTop={i > 0}/>
+        ))}
+        {visible.length === 0 && (
+          <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--fg-3)', fontSize: 14 }}>
+            Keine Folgen in dieser Kategorie.
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-// ─── Discover ─────────────────────────────────────────────
-function DiscoverScreen({ onSeriesClick }) {
+function EpisodeItem({ ep, tr, borderTop }) {
+  const listened = tr.isListened(ep.num);
+  const rating   = tr.getRating(ep.num);
+
   return (
-    <div>
-      <PageHeader eyebrow="Discover" title="What others are hearing this week"/>
-      <div style={{
-        background: 'var(--bg-1)', border: '1px solid var(--line-1)', borderRadius: 14,
-        padding: 28, display: 'flex', gap: 28, marginBottom: 48,
-      }}>
-        <Cover src={SAMPLE_SERIES[5].cover} width={180}/>
-        <div style={{ flex: 1, paddingTop: 8 }}>
-          <div style={{
-            fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase',
-            fontWeight: 600, color: 'var(--accent)', marginBottom: 10,
-          }}>Featured this week</div>
-          <h2 style={{
-            fontFamily: 'var(--font-serif)', fontSize: 32, fontWeight: 600,
-            color: 'var(--fg-1)', margin: '0 0 12px', letterSpacing: '-0.014em',
-          }}>The Sandman</h2>
-          <p style={{
-            fontFamily: 'var(--font-sans)', fontSize: 15, color: 'var(--fg-2)',
-            margin: '0 0 18px', lineHeight: 1.55, maxWidth: '52ch',
-          }}>An Audible Original starring James McAvoy as the Lord of Dreams. Adapted from the Neil Gaiman comic series.</p>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 }}>
-            <Stars value={5} size={16}/>
-            <span style={{fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--fg-2)'}}>4.6 · 12,432 ratings</span>
+    <div style={{ padding: '14px 14px 10px', borderTop: borderTop ? '1px solid var(--line-1)' : 'none' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+
+        {/* Listened toggle */}
+        <button onClick={() => tr.toggleListened(ep.num)} style={{
+          width: 22, height: 22, borderRadius: 999, flexShrink: 0, marginTop: 2,
+          border: listened ? 'none' : '2px solid var(--line-2)',
+          background: listened ? 'var(--status-listened)' : 'transparent',
+          cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          transition: 'all 140ms var(--ease-out)',
+        }}>
+          {listened && (
+            <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="2,6 5,9 10,3"/>
+            </svg>
+          )}
+        </button>
+
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--fg-3)' }}>{ep.num}</span>
+            <span style={{
+              fontFamily: 'var(--font-serif)', fontSize: 16, fontWeight: 600,
+              color: listened ? 'var(--fg-3)' : 'var(--fg-1)', lineHeight: 1.25,
+            }}>{ep.title}</span>
           </div>
-          <Button variant="primary" onClick={() => onSeriesClick(SAMPLE_SERIES[5])}>Open series</Button>
-        </div>
-      </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 5 }}>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--fg-4)' }}>{ep.duration} min</span>
+            {listened && tr.listenedDate(ep.num) && (
+              <span style={{ fontSize: 11, color: 'var(--status-listened)' }}>
+                {formatDate(tr.listenedDate(ep.num))}
+              </span>
+            )}
+          </div>
 
-      <SectionHeader eyebrow="Trending" title="In Hörspiele"/>
-      <div style={{
-        display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 20,
-        marginBottom: 48,
-      }}>
-        {SAMPLE_SERIES.slice(0, 6).map(s => <SeriesCard key={s.id} series={s} onClick={() => onSeriesClick(s)}/>)}
-      </div>
-
-      <SectionHeader eyebrow="Activity" title="From your friends"/>
-      <div style={{
-        background: 'var(--bg-1)', border: '1px solid var(--line-1)', borderRadius: 14,
-        overflow: 'hidden',
-      }}>
-        {[
-          { user: 'Mira', series: 'Die drei ???', episode: 'Geisterbucht', rating: 4, when: '2 hours ago',
-            note: "Surprisingly tense for a late Folge." },
-          { user: 'Jonas', series: 'TKKG', episode: 'Der Bankraub', rating: 3, when: 'yesterday', note: '' },
-          { user: 'Lena', series: 'Bibi Blocksberg', episode: 'Verhexte Klassenfahrt', rating: 5, when: '3 days ago',
-            note: "Pure nostalgia. Heard this twenty times as a kid." },
-        ].map((r, i) => (
-          <div key={i} style={{
-            padding: '20px 24px', display: 'grid', gridTemplateColumns: '40px 1fr auto', gap: 16,
-            borderTop: i > 0 ? '1px solid var(--line-1)' : 'none',
-          }}>
-            <div style={{
-              width: 36, height: 36, borderRadius: 999, background: 'var(--accent-soft)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontFamily: 'var(--font-serif)', fontWeight: 600, color: 'var(--accent)', fontSize: 15,
-            }}>{r.user[0]}</div>
-            <div>
-              <div style={{ fontSize: 14, color: 'var(--fg-1)', marginBottom: 4 }}>
-                <strong style={{fontWeight: 600}}>{r.user}</strong> rated <em style={{fontFamily: 'var(--font-serif)', fontSize: 16}}>{r.episode}</em> from {r.series}
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: r.note ? 8 : 0 }}>
-                <Stars value={r.rating} size={12}/>
-              </div>
-              {r.note && <p style={{
-                fontFamily: 'var(--font-serif)', fontSize: 14, fontStyle: 'italic',
-                color: 'var(--fg-2)', margin: 0, lineHeight: 1.5,
-              }}>"{r.note}"</p>}
+          {/* Star rating (nur wenn gehört) */}
+          {listened && (
+            <div style={{ display: 'flex', gap: 2, marginTop: 8 }}>
+              {[1,2,3,4,5].map(star => (
+                <button key={star} onClick={() => tr.setRating(ep.num, star === rating ? 0 : star)} style={{
+                  background: 'none', border: 'none', padding: '0 1px', cursor: 'pointer',
+                  fontSize: 17, lineHeight: 1,
+                  color: star <= rating ? 'var(--rating)' : 'var(--fg-4)',
+                  transition: 'color 100ms',
+                }}>★</button>
+              ))}
             </div>
-            <div style={{fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--fg-3)'}}>{r.when}</div>
-          </div>
-        ))}
+          )}
+        </div>
+
+        {/* In Apple Music öffnen */}
+        <a href={appleMusicUrl(ep)} target="_blank" rel="noopener noreferrer" style={{
+          color: 'var(--fg-4)', flexShrink: 0, padding: 4, marginTop: -2,
+        }}>
+          <Icon name="headphones" size={16}/>
+        </a>
       </div>
+    </div>
+  );
+}
+
+// ─── Discover (Platzhalter) ───────────────────────────────
+function DiscoverScreen() {
+  return (
+    <div style={{ maxWidth: 480, margin: '0 auto' }}>
+      <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 28, fontWeight: 600, color: 'var(--fg-1)', margin: '0 0 12px' }}>
+        Entdecken
+      </h1>
+      <p style={{ color: 'var(--fg-3)', fontSize: 14 }}>Kommt bald – neue Folgen und Empfehlungen.</p>
     </div>
   );
 }
 
 // ─── Journal ──────────────────────────────────────────────
 function JournalScreen() {
-  const entries = [
-    { ep: 'Geisterbucht', series: 'Die drei ???', when: '2 weeks ago', rating: 4,
-      note: 'A surprisingly tense Folge — the pacing felt closer to the early ones. Justus is sharp here.' },
-    { ep: 'Verhexte Klassenfahrt', series: 'Bibi Blocksberg', when: 'last month', rating: 5,
-      note: "Pure comfort listening. Reminded me of the cassette in my mom's car." },
-    { ep: 'Schwarze Sonne', series: 'Die drei ???', when: 'last month', rating: 0,
-      note: 'Plot was thin. Skip on a re-listen.' },
-    { ep: 'Die Spur des Spielers', series: 'Die drei ???', when: '6 months ago', rating: 3,
-      note: "Decent middle Folge. The casino scenes worked, the ending didn't land." },
-  ];
+  const tr = useTracking();
+  const rated = EPISODES
+    .filter(ep => tr.getRating(ep.num) > 0)
+    .sort((a, b) => tr.getRating(b.num) - tr.getRating(a.num));
+
   return (
-    <div>
-      <PageHeader
-        eyebrow="Journal"
-        title="What you've heard."
-        lede="Every note you've made, every rating, in one quiet place."
-      />
-      <div style={{ maxWidth: 720, display: 'flex', flexDirection: 'column', gap: 0 }}>
-        {entries.map((e, i) => (
-          <div key={i} style={{
-            padding: '28px 0',
+    <div style={{ maxWidth: 480, margin: '0 auto' }}>
+      <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 28, fontWeight: 600, color: 'var(--fg-1)', margin: '0 0 6px' }}>
+        Journal
+      </h1>
+      <p style={{ color: 'var(--fg-3)', fontSize: 14, marginBottom: 28 }}>
+        Deine Bewertungen, beste Folgen zuerst.
+      </p>
+
+      {rated.length === 0 && (
+        <div style={{ color: 'var(--fg-4)', fontSize: 14, padding: '40px 0', textAlign: 'center', lineHeight: 1.6 }}>
+          Noch keine bewerteten Folgen.<br/>
+          Markiere Folgen als gehört und vergib Sterne.
+        </div>
+      )}
+
+      <div>
+        {rated.map((ep, i) => (
+          <div key={ep.num} style={{
+            padding: '20px 0',
             borderTop: i > 0 ? '1px solid var(--line-1)' : 'none',
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
-              {e.rating > 0
-                ? <Stars value={e.rating} size={14}/>
-                : <span style={{fontSize: 12, color: 'var(--fg-3)', fontStyle: 'italic'}}>No rating</span>}
-              <span style={{fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--fg-3)'}}>· {e.when}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+              <Stars value={tr.getRating(ep.num)} size={14}/>
+              {tr.listenedDate(ep.num) && (
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--fg-3)' }}>
+                  · {formatDate(tr.listenedDate(ep.num))}
+                </span>
+              )}
             </div>
-            <h3 style={{
-              fontFamily: 'var(--font-serif)', fontSize: 22, fontWeight: 600,
-              color: 'var(--fg-1)', margin: '0 0 6px',
-            }}>{e.ep}</h3>
-            <div style={{fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--fg-3)', marginBottom: 14}}>{e.series}</div>
-            <p style={{
-              fontFamily: 'var(--font-serif)', fontSize: 18, fontStyle: 'italic',
-              color: 'var(--fg-2)', margin: 0, lineHeight: 1.55, maxWidth: '60ch',
-            }}>"{e.note}"</p>
+            <div style={{ fontFamily: 'var(--font-serif)', fontSize: 20, fontWeight: 600, color: 'var(--fg-1)', marginBottom: 4 }}>
+              {ep.title}
+            </div>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--fg-3)' }}>
+              Folge {ep.num} · {ep.duration} min
+            </div>
           </div>
         ))}
       </div>
@@ -359,4 +391,4 @@ function JournalScreen() {
   );
 }
 
-Object.assign(window, { HomeScreen, LibraryScreen, SeriesScreen, DiscoverScreen, JournalScreen, SAMPLE_SERIES });
+Object.assign(window, { HomeScreen, LibraryScreen, DiscoverScreen, JournalScreen });

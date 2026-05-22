@@ -119,22 +119,17 @@
   <script type="text/babel">
     function App() {
       const [nav, setNav] = React.useState('home');
-      const [series, setSeries] = React.useState(null);
-
-      const goSeries = (s) => { setSeries(s); setNav('library'); };
-      const back = () => setSeries(null);
 
       let content;
-      if (series)              content = <SeriesScreen series={series} onBack={back}/>;
-      else if (nav === 'home')     content = <HomeScreen onSeriesClick={goSeries}/>;
-      else if (nav === 'library')  content = <LibraryScreen onSeriesClick={goSeries}/>;
-      else if (nav === 'discover') content = <DiscoverScreen onSeriesClick={goSeries}/>;
+      if      (nav === 'home')     content = <HomeScreen/>;
+      else if (nav === 'library')  content = <LibraryScreen/>;
+      else if (nav === 'discover') content = <DiscoverScreen/>;
       else if (nav === 'journal')  content = <JournalScreen/>;
-      else                         content = <HomeScreen onSeriesClick={goSeries}/>;
+      else                         content = <HomeScreen/>;
 
       return (
         <div className="app">
-          <Sidebar active={nav} onChange={(id) => { setSeries(null); setNav(id); }}/>
+          <Sidebar active={nav} onChange={setNav}/>
           <div className="app-column">
             <div className="topbar">
               <div className="topbar-logo-mobile">
@@ -154,7 +149,7 @@
             </div>
             <main className="main">{content}</main>
           </div>
-          <BottomTabBar active={nav} onChange={(id) => { setSeries(null); setNav(id); }}/>
+          <BottomTabBar active={nav} onChange={setNav}/>
         </div>
       );
     }
