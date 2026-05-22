@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>AudioLog</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#F6F1E8" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#14110E" media="(prefers-color-scheme: dark)">
+
+  <!-- iOS home screen -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="AudioLog">
+  <link rel="apple-touch-icon" href="assets/app-icon.svg">
+
+  <link rel="stylesheet" href="colors_and_type.css">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body {
+      margin: 0; padding: 0; min-height: 100vh;
+      background: var(--bg-0); color: var(--fg-1);
+      font-family: var(--font-sans);
+    }
+
+    /* App shell */
+    .app {
+      display: flex; min-height: 100vh;
+      max-width: 1440px; margin: 0 auto;
+      border-left: 1px solid var(--line-1);
+      border-right: 1px solid var(--line-1);
+    }
+
+    /* Content column */
+    .app-column {
+      flex: 1; min-width: 0;
+      display: flex; flex-direction: column;
+    }
+
+    /* Top bar */
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 56px;
+      border-bottom: 1px solid var(--line-1);
+      background: var(--bg-0);
+      position: sticky; top: 0; z-index: 10;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+
+    /* Search field */
+    .search {
+      flex: 0 1 480px; display: flex; align-items: center; gap: 10px;
+      background: var(--bg-1); border: 1px solid var(--line-1);
+      border-radius: 10px; padding: 9px 14px; color: var(--fg-3);
+      transition: border-color 140ms var(--ease-out);
+    }
+    .search:focus-within {
+      border-color: var(--line-2);
+    }
+    .search input {
+      flex: 1; background: transparent; border: none; outline: none;
+      color: var(--fg-1); font-size: 14px; font-family: var(--font-sans);
+    }
+    .search input::placeholder { color: var(--fg-3); }
+
+    .topbar-actions { display: flex; align-items: center; gap: 12px; }
+
+    /* Main content */
+    .main { flex: 1; padding: 48px 56px 80px; min-width: 0; }
+
+    /* Scrollbar styling */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 999px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--fg-4); }
+  </style>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel" src="js/components.jsx"></script>
+  <script type="text/babel" src="js/screens.jsx"></script>
+
+  <script type="text/babel">
+    function App() {
+      const [nav, setNav] = React.useState('home');
+      const [series, setSeries] = React.useState(null);
+
+      const goSeries = (s) => { setSeries(s); setNav('library'); };
+      const back = () => setSeries(null);
+
+      let content;
+      if (series)              content = <SeriesScreen series={series} onBack={back}/>;
+      else if (nav === 'home')     content = <HomeScreen onSeriesClick={goSeries}/>;
+      else if (nav === 'library')  content = <LibraryScreen onSeriesClick={goSeries}/>;
+      else if (nav === 'discover') content = <DiscoverScreen onSeriesClick={goSeries}/>;
+      else if (nav === 'journal')  content = <JournalScreen/>;
+      else                         content = <HomeScreen onSeriesClick={goSeries}/>;
+
+      return (
+        <div className="app">
+          <Sidebar active={nav} onChange={(id) => { setSeries(null); setNav(id); }}/>
+          <div className="app-column">
+            <div className="topbar">
+              <div className="search">
+                <Icon name="search" size={16}/>
+                <input placeholder="Search series, episodes, narrators…"/>
+                <span style={{
+                  fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--fg-4)',
+                  padding: '2px 6px', border: '1px solid var(--line-1)', borderRadius: 4,
+                }}>⌘K</span>
+              </div>
+              <div className="topbar-actions">
+                <Button variant="secondary" size="sm" icon="plus">Add series</Button>
+              </div>
+            </div>
+            <main className="main">{content}</main>
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+  </script>
+</body>
+</html>
