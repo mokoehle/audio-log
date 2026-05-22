@@ -119,13 +119,52 @@
   <script type="text/babel">
     function App() {
       const [nav, setNav] = React.useState('home');
+      const [episodes, setEpisodes] = React.useState(() => getCachedEpisodes());
+      const [loading, setLoading]   = React.useState(false);
+      const [error, setError]       = React.useState(null);
+
+      React.useEffect(() => {
+        if (episodes) return;
+        setLoading(true);
+        fetchEpisodes()
+          .then(eps => { setEpisodes(eps); setLoading(false); })
+          .catch(e  => { setError(e.message); setLoading(false); });
+      }, []);
+
+      const handleRefresh = () => {
+        setLoading(true);
+        setError(null);
+        fetchEpisodes(true)
+          .then(eps => { setEpisodes(eps); setLoading(false); })
+          .catch(e  => { setError(e.message); setLoading(false); });
+      };
+
+      const screenProps = { episodes: episodes || [], onRefresh: handleRefresh, refreshing: loading };
 
       let content;
-      if      (nav === 'home')     content = <HomeScreen/>;
-      else if (nav === 'library')  content = <LibraryScreen/>;
-      else if (nav === 'discover') content = <DiscoverScreen/>;
-      else if (nav === 'journal')  content = <JournalScreen/>;
-      else                         content = <HomeScreen/>;
+      if (loading && !episodes) {
+        content = (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '50vh', gap: 12 }}>
+            <div style={{ color: 'var(--fg-3)', fontFamily: 'var(--font-sans)', fontSize: 14 }}>Lade Folgen von Apple Music…</div>
+          </div>
+        );
+      } else if (error && !episodes) {
+        content = (
+          <div style={{ maxWidth: 480, margin: '0 auto', padding: '40px 0', textAlign: 'center' }}>
+            <div style={{ color: 'var(--danger)', fontSize: 15, marginBottom: 8 }}>Laden fehlgeschlagen</div>
+            <div style={{ color: 'var(--fg-3)', fontSize: 13, marginBottom: 24 }}>{error}</div>
+            <button onClick={handleRefresh} style={{
+              padding: '10px 20px', borderRadius: 10, background: 'var(--accent)',
+              color: 'var(--accent-fg)', border: 'none', cursor: 'pointer',
+              fontFamily: 'var(--font-sans)', fontSize: 14, fontWeight: 500,
+            }}>Erneut versuchen</button>
+          </div>
+        );
+      } else if (nav === 'home')     content = <HomeScreen    {...screenProps}/>;
+      else if   (nav === 'library')  content = <LibraryScreen {...screenProps}/>;
+      else if   (nav === 'discover') content = <DiscoverScreen{...screenProps}/>;
+      else if   (nav === 'journal')  content = <JournalScreen {...screenProps}/>;
+      else                           content = <HomeScreen    {...screenProps}/>;
 
       return (
         <div className="app">
@@ -142,9 +181,6 @@
               <div className="search">
                 <Icon name="search" size={16}/>
                 <input placeholder="Suchen…"/>
-              </div>
-              <div className="topbar-actions">
-                <Button variant="secondary" size="sm" icon="plus">Add series</Button>
               </div>
             </div>
             <main className="main">{content}</main>
